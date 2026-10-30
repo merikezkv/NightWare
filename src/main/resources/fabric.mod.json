@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "nightware",
+  "version": "${version}",
+  "name": "NightWare",
+  "description": "NightWare Client for Minecraft 1.21.4",
+  "authors": [
+    "NightWare"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "ru.nightware.client.NightWare"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "minecraft": "1.21.4",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
