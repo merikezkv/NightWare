@@ -9,11 +9,8 @@ import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryEntryLookup;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
-
-import java.util.List;
 
 public class ArmorHudRenderer {
 
@@ -35,13 +32,12 @@ public class ArmorHudRenderer {
     }
 
     private static void render(DrawContext context, MinecraftClient client) {
-        List<ItemStack> armor = client.player.getInventory().armor;
-
-        int width = 150;
-        int height = 38;
+        var armor = client.player.getInventory().armor;
 
         int x = 12;
         int y = 12;
+        int width = 150;
+        int height = 38;
 
         context.fill(x, y, x + width, y + height, 0xCC151020);
         context.fill(x, y, x + width, y + 2, PURPLE);
@@ -49,13 +45,11 @@ public class ArmorHudRenderer {
         context.drawText(
                 client.textRenderer,
                 "NIGHTWARE ARMOR",
-                x + 7,
-                y + 5,
+                x + 7, y + 5,
                 PURPLE,
                 false
         );
 
-        // Порядок: шлем, нагрудник, поножи, ботинки
         int[] slots = {3, 2, 1, 0};
 
         for (int i = 0; i < slots.length; i++) {
@@ -65,43 +59,30 @@ public class ArmorHudRenderer {
             int itemY = y + 17;
 
             if (stack.isEmpty()) {
-                context.fill(itemX, itemY, itemX + 16, itemY + 16, 0x55333333);
+                context.fill(
+                        itemX, itemY,
+                        itemX + 16, itemY + 16,
+                        0x55333333
+                );
                 continue;
             }
 
-            private static boolean hasMending(ItemStack stack) {
-    MinecraftClient client = MinecraftClient.getInstance();
+            boolean mending = hasMending(stack);
+            int durability = getDurability(stack);
 
-    if (client.world == null) {
-        return false;
-    }
-
-    Registry<Enchantment> registry =
-            client.world.getRegistryManager()
-                    .getOrThrow(RegistryKeys.ENCHANTMENT);
-
-    RegistryEntry<Enchantment> mending =
-            registry.getEntry(Enchantments.MENDING).orElse(null);
-
-    return mending != null
-            && EnchantmentHelper.getLevel(mending, stack) > 0;
-        }
-
-            // Подсветка предмета с Починкой
             if (mending) {
                 context.fill(
-                        itemX - 2,
-                        itemY - 2,
-                        itemX + 18,
-                        itemY + 18,
+                        itemX - 2, itemY - 2,
+                        itemX + 18, itemY + 18,
                         0x6635E879
                 );
             }
 
             context.drawItem(stack, itemX, itemY);
 
-            int color = durability <= 20 ? RED :
-                    mending ? GREEN : WHITE;
+            int color = durability <= 20
+                    ? RED
+                    : mending ? GREEN : WHITE;
 
             context.drawText(
                     client.textRenderer,
@@ -126,10 +107,20 @@ public class ArmorHudRenderer {
     }
 
     private static boolean hasMending(ItemStack stack) {
-        var mending = Registries.ENCHANTMENT
-                .getEntry(Enchantments.MENDING);
+        MinecraftClient client = MinecraftClient.getInstance();
 
-        return mending.isPresent()
-                && EnchantmentHelper.getLevel(mending.get(), stack) > 0;
+        if (client.world == null) {
+            return false;
+        }
+
+        Registry<Enchantment> registry =
+                client.world.getRegistryManager()
+                        .getOrThrow(RegistryKeys.ENCHANTMENT);
+
+        RegistryEntry<Enchantment> mending =
+                registry.getEntry(Enchantments.MENDING).orElse(null);
+
+        return mending != null
+                && EnchantmentHelper.getLevel(mending, stack) > 0;
     }
-  }
+}
