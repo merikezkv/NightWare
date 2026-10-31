@@ -1,5 +1,6 @@
 package ru.nightware.client;
 
+import ru.nightware.client.hud.ArmorHudRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -19,6 +20,7 @@ public class NightWare implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ArmorHudRenderer.register();
 
         openGui = KeyBindingHelper.registerKeyBinding(
             new KeyBinding(
