@@ -1,0 +1,117 @@
+
+package ru.nightware.client.hud;
+
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.Text;
+
+import java.util.List;
+
+public class ArmorHudRenderer {
+
+    private static final int PURPLE = 0xFF9B59FF;
+    private static final int GREEN = 0xFF35E879;
+    private static final int RED = 0xFFFF4545;
+    private static final int WHITE = 0xFFFFFFFF;
+
+    public static void register() {
+        HudRenderCallback.EVENT.register((context, tickCounter) -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+
+            if (client.player == null || client.options.hudHidden) {
+                return;
+            }
+
+            render(context, client);
+        });
+    }
+
+    private static void render(DrawContext context, MinecraftClient client) {
+        List<ItemStack> armor = client.player.getInventory().armor;
+
+        int width = 150;
+        int height = 38;
+
+        int x = 12;
+        int y = 12;
+
+        context.fill(x, y, x + width, y + height, 0xCC151020);
+        context.fill(x, y, x + width, y + 2, PURPLE);
+
+        context.drawText(
+                client.textRenderer,
+                "NIGHTWARE ARMOR",
+                x + 7,
+                y + 5,
+                PURPLE,
+                false
+        );
+
+        // Порядок: шлем, нагрудник, поножи, ботинки
+        int[] slots = {3, 2, 1, 0};
+
+        for (int i = 0; i < slots.length; i++) {
+            ItemStack stack = armor.get(slots[i]);
+
+            int itemX = x + 7 + i * 35;
+            int itemY = y + 17;
+
+            if (stack.isEmpty()) {
+                context.fill(itemX, itemY, itemX + 16, itemY + 16, 0x55333333);
+                continue;
+            }
+
+            boolean mending = hasMending(stack);
+            int durability = getDurability(stack);
+
+            // Подсветка предмета с Починкой
+            if (mending) {
+                context.fill(
+                        itemX - 2,
+                        itemY - 2,
+                        itemX + 18,
+                        itemY + 18,
+                        0x6635E879
+                );
+            }
+
+            context.drawItem(stack, itemX, itemY);
+
+            int color = durability <= 20 ? RED :
+                    mending ? GREEN : WHITE;
+
+            context.drawText(
+                    client.textRenderer,
+                    durability + "%",
+                    itemX - 1,
+                    itemY + 18,
+                    color,
+                    false
+            );
+        }
+    }
+
+    private static int getDurability(ItemStack stack) {
+        if (!stack.isDamageable()) {
+            return 100;
+        }
+
+        int max = stack.getMaxDamage();
+        int remaining = max - stack.getDamage();
+
+        return Math.max(0, remaining * 100 / max);
+    }
+
+    private static boolean hasMending(ItemStack stack) {
+        var mending = Registries.ENCHANTMENT
+                .getEntry(Enchantments.MENDING);
+
+        return mending.isPresent()
+                && EnchantmentHelper.getLevel(mending.get(), stack) > 0;
+    }
+  }
