@@ -28,170 +28,264 @@ public class ClickGuiScreen extends Screen {
     };
 
     private static final String[] SECTIONS = {
-        "Combat", "Movement",
-        "Render", "Player", "Util", "Themes"
+        "Combat", "Movement", "Render",
+        "Player", "Util", "Themes"
     };
 
     private static final String[][] MODULES = {
-        {},
         {"Combat Visual"},
         {"Movement Visual"},
         {"Armor Highlight", "Coordinates", "FPS Counter"},
         {"Player Visual"},
-        {"HUD"}
+        {"HUD"},
+        {}
     };
 
+    // Сохраняются при закрытии ClickGUI
     private static final boolean[][] enabled = new boolean[6][3];
+
+    // Анимация переключателей
+    private static final float[][] toggleAnimation = new float[6][3];
 
     private int selectedColor = 0;
     private int selectedSection = 0;
 
+    private long openTime;
+    private long sectionChangeTime;
+
+    private int previousSection = 0;
+
+    private static final long OPEN_DURATION = 350;
+    private static final long SECTION_DURATION = 220;
+
     public ClickGuiScreen() {
         super(Text.literal("NightWare"));
+        openTime = System.currentTimeMillis();
+        sectionChangeTime = openTime;
     }
 
-    private int animatedColor(long offset) {
-        long time = System.currentTimeMillis() / 12 + offset;
-        int index = (int) ((time / 35) % COLORS.length);
-        int next = (index + 1) % COLORS.length;
+    private float clamp(float value) {
+        return Math.max(0.0f, Math.min(1.0f, value));
+    }
 
-        float progress = (time % 35) / 35.0f;
+    private float easeOut(float value) {
+        value = clamp(value);
+        return 1.0f - (1.0f - value) * (1.0f - value);
+    }
 
-        return blend(COLORS[index], COLORS[next], progress);
+    private float openProgress() {
+        return easeOut(
+            (System.currentTimeMillis() - openTime)
+                / (float) OPEN_DURATION
+        );
+    }
+
+    private float sectionProgress() {
+        return easeOut(
+            (System.currentTimeMillis() - sectionChangeTime)
+                / (float) SECTION_DURATION
+        );
     }
 
     private int blend(int a, int b, float t) {
+        t = clamp(t);
+
         int r = (int) (((a >> 16) & 255) * (1 - t)
                 + ((b >> 16) & 255) * t);
+
         int g = (int) (((a >> 8) & 255) * (1 - t)
                 + ((b >> 8) & 255) * t);
+
         int bl = (int) ((a & 255) * (1 - t)
                 + (b & 255) * t);
 
         return 0xFF000000 | (r << 16) | (g << 8) | bl;
     }
 
+    private int animatedColor(long offset) {
+        long time = System.currentTimeMillis() / 8 + offset;
+
+        int index = (int) ((time / 45 + selectedColor)
+                % COLORS.length);
+
+        int next = (index + 1) % COLORS.length;
+
+        float progress = (time % 45) / 45.0f;
+
+        return blend(COLORS[index], COLORS[next], progress);
+    }
+
     @Override
     public void renderBackground(
-        DrawContext context, int mouseX,
-        int mouseY, float delta
+        DrawContext context,
+        int mouseX,
+        int mouseY,
+        float delta
     ) {
-        // Размытие отключено
+        // Размытие полностью отключено
     }
 
     @Override
     public void render(
-        DrawContext context, int mouseX,
-        int mouseY, float delta
+        DrawContext context,
+        int mouseX,
+        int mouseY,
+        float delta
     ) {
+        float opening = openProgress();
+
+        // Непрозрачный фон
         context.fill(0, 0, width, height, BG);
 
-        int x = width / 2 - 210;
-        int y = height / 2 - 125;
+        int baseX = width / 2 - 190;
+        int baseY = height / 2 - 112;
+
+        // Анимация появления: плавное смещение
+        int x = baseX;
+        int y = baseY + (int) ((1.0f - opening) * 18);
+
         int accent = COLORS[selectedColor];
 
-        // Главное окно
-        context.fill(x, y, x + 420, y + 250, PANEL);
+        // Основное окно
+        context.fill(x, y, x + 380, y + 225, PANEL);
 
         // Заголовок
-        context.fill(x, y, x + 420, y + 38, 0xFF20202A);
-        context.fill(x, y + 37, x + 420, y + 39, accent);
-
-        context.drawTextWithShadow(
-            textRenderer, Text.literal("NightWare"),
-            x + 14, y + 14, accent
+        context.fill(x, y, x + 380, y + 36, 0xFF20202A);
+        context.fill(
+            x, y + 35, x + 380, y + 37,
+            animatedColor(0)
         );
 
         context.drawTextWithShadow(
-            textRenderer, Text.literal("1.21.4"),
-            x + 375, y + 14, 0xFFFFFFFF
+            textRenderer,
+            Text.literal("NightWare"),
+            x + 14, y + 13,
+            animatedColor(0)
+        );
+
+        context.drawTextWithShadow(
+            textRenderer,
+            Text.literal("1.21.4"),
+            x + 335, y + 13,
+            0xFFFFFFFF
         );
 
         // Боковая панель
-        context.fill(x, y + 39, x + 125, y + 250, SIDEBAR);
-
-        context.drawTextWithShadow(
-            textRenderer, Text.literal("SECTIONS"),
-            x + 12, y + 51, 0xFF888888
+        context.fill(
+            x, y + 37,
+            x + 115, y + 225,
+            SIDEBAR
         );
 
+        context.drawTextWithShadow(
+            textRenderer,
+            Text.literal("SECTIONS"),
+            x + 11, y + 48,
+            0xFF888888
+        );
+
+        // Разделы
         for (int i = 0; i < SECTIONS.length; i++) {
-            int rowY = y + 70 + i * 28;
+            int rowY = y + 65 + i * 25;
 
             if (selectedSection == i) {
                 context.fill(
-                    x + 7, rowY - 4,
-                    x + 118, rowY + 19, ROW
+                    x + 6, rowY - 3,
+                    x + 109, rowY + 18,
+                    ROW
                 );
 
                 context.fill(
-                    x + 7, rowY - 4,
-                    x + 10, rowY + 19, accent
+                    x + 6, rowY - 3,
+                    x + 9, rowY + 18,
+                    animatedColor(i * 200L)
                 );
             }
 
             context.drawTextWithShadow(
-                textRenderer, Text.literal(SECTIONS[i]),
-                x + 18, rowY + 3,
-                selectedSection == i ? accent : 0xFFBBBBBB
+                textRenderer,
+                Text.literal(SECTIONS[i]),
+                x + 16, rowY + 3,
+                selectedSection == i
+                    ? animatedColor(i * 200L)
+                    : 0xFFBBBBBB
             );
         }
 
-        int contentX = x + 145;
+        int contentX = x + 132;
 
+        // Заголовок выбранной секции
         context.drawTextWithShadow(
             textRenderer,
             Text.literal(SECTIONS[selectedSection].toUpperCase()),
-            contentX, y + 55, accent
+            contentX, y + 51,
+            animatedColor(0)
         );
 
-        if (selectedSection == 0) {
-            renderTheme(context, contentX, y);
+        float transition = sectionProgress();
+
+        // Плавный переход содержимого
+        int slide = (int) ((1.0f - transition) * 18);
+
+        if (selectedSection == 5) {
+            renderTheme(context, contentX, y, slide);
         } else {
-            renderModules(context, contentX, y);
+            renderModules(context, contentX, y, slide, delta);
         }
 
         context.drawTextWithShadow(
-            textRenderer, Text.literal("NightWare Client"),
-            x + 12, y + 233, 0xFF777777
+            textRenderer,
+            Text.literal("NightWare Client"),
+            x + 11, y + 210,
+            0xFF777777
         );
 
         super.render(context, mouseX, mouseY, delta);
     }
 
     private void renderTheme(
-        DrawContext context, int contentX, int y
+        DrawContext context,
+        int contentX,
+        int y,
+        int slide
     ) {
         context.fill(
-            contentX - 5, y + 76,
-            contentX + 260, y + 220, ROW
+            contentX - 5 + slide, y + 69,
+            contentX + 237 + slide, y + 195,
+            ROW
         );
 
         context.drawTextWithShadow(
-            textRenderer, Text.literal("Accent Color"),
-            contentX + 10, y + 90, 0xFFFFFFFF
+            textRenderer,
+            Text.literal("Accent Color"),
+            contentX + 10 + slide,
+            y + 82,
+            0xFFFFFFFF
         );
 
         context.drawTextWithShadow(
-            textRenderer, Text.literal("Choose interface colors"),
-            contentX + 10, y + 108, 0xFF999999
+            textRenderer,
+            Text.literal("Choose interface colors"),
+            contentX + 10 + slide,
+            y + 99,
+            0xFF999999
         );
 
         for (int i = 0; i < COLORS.length; i++) {
-            int colorX = contentX + 12 + (i % 4) * 48;
-            int colorY = y + 140 + (i / 4) * 43;
+            int colorX = contentX + 12 + slide + (i % 4) * 43;
+            int colorY = y + 125 + (i / 4) * 35;
 
             if (selectedColor == i) {
                 context.fill(
                     colorX - 3, colorY - 3,
-                    colorX + 27, colorY + 27,
+                    colorX + 25, colorY + 25,
                     0xFFFFFFFF
                 );
             }
 
             context.fill(
                 colorX, colorY,
-                colorX + 24, colorY + 24,
+                colorX + 19, colorY + 19,
                 COLORS[i]
             );
         }
@@ -199,109 +293,147 @@ public class ClickGuiScreen extends Screen {
         context.drawTextWithShadow(
             textRenderer,
             Text.literal("Selected: " + COLOR_NAMES[selectedColor]),
-            contentX + 10, y + 203, COLORS[selectedColor]
+            contentX + 10 + slide,
+            y + 181,
+            animatedColor(0)
         );
     }
 
     private void renderModules(
-        DrawContext context, int contentX, int y
+        DrawContext context,
+        int contentX,
+        int y,
+        int slide,
+        float delta
     ) {
         String[] modules = MODULES[selectedSection];
 
         if (modules.length == 0) {
             context.drawTextWithShadow(
-                textRenderer, Text.literal("No modules yet"),
-                contentX + 12, y + 95, 0xFF999999
+                textRenderer,
+                Text.literal("No modules yet"),
+                contentX + 12 + slide,
+                y + 90,
+                0xFF999999
             );
             return;
         }
 
         for (int i = 0; i < modules.length; i++) {
-            int rowY = y + 76 + i * 35;
+            int rowY = y + 69 + i * 31;
+
             boolean active = enabled[selectedSection][i];
 
+            // Плавная анимация ON/OFF
+            float target = active ? 1.0f : 0.0f;
+
+            toggleAnimation[selectedSection][i] +=
+                (target - toggleAnimation[selectedSection][i])
+                    * Math.min(1.0f, delta * 12.0f);
+
+            float animation = toggleAnimation[selectedSection][i];
+
             int color = active
-                ? animatedColor(i * 500L)
+                ? animatedColor(i * 650L)
                 : ROW;
 
+            int background = blend(ROW, color, animation);
+
             context.fill(
-                contentX - 5, rowY,
-                contentX + 260, rowY + 29,
-                color
+                contentX - 5 + slide, rowY,
+                contentX + 237 + slide, rowY + 26,
+                background
             );
 
-            if (active) {
+            if (animation > 0.01f) {
                 context.fill(
-                    contentX - 5, rowY,
-                    contentX - 2, rowY + 29,
-                    animatedColor(i * 500L + 200)
+                    contentX - 5 + slide, rowY,
+                    contentX - 2 + slide, rowY + 26,
+                    animatedColor(i * 300L)
                 );
             }
 
             context.drawTextWithShadow(
-                textRenderer, Text.literal(modules[i]),
-                contentX + 9, rowY + 10,
-                active ? 0xFFFFFFFF : 0xFFBBBBBB
+                textRenderer,
+                Text.literal(modules[i]),
+                contentX + 8 + slide,
+                rowY + 9,
+                0xFFFFFFFF
             );
 
             context.drawTextWithShadow(
                 textRenderer,
                 Text.literal(active ? "ON" : "OFF"),
-                contentX + 225, rowY + 10,
-                active ? 0xFFFFFFFF : 0xFF888888
+                contentX + 204 + slide,
+                rowY + 9,
+                blend(0xFF888888, animatedColor(i * 400L),
+                    animation)
             );
         }
     }
 
     @Override
     public boolean mouseClicked(
-        double mouseX, double mouseY, int button
+        double mouseX,
+        double mouseY,
+        int button
     ) {
         if (button == 0) {
-            int x = width / 2 - 210;
-            int y = height / 2 - 125;
+            int x = width / 2 - 190;
+            int y = height / 2 - 112;
 
-            // Выбор раздела
+            // Выбор секции
             for (int i = 0; i < SECTIONS.length; i++) {
-                int rowY = y + 70 + i * 28;
+                int rowY = y + 65 + i * 25;
 
-                if (mouseX >= x + 7 && mouseX <= x + 118
-                    && mouseY >= rowY - 4
-                    && mouseY <= rowY + 19) {
-                    selectedSection = i;
+                if (mouseX >= x + 6
+                    && mouseX <= x + 109
+                    && mouseY >= rowY - 3
+                    && mouseY <= rowY + 18) {
+
+                    if (selectedSection != i) {
+                        previousSection = selectedSection;
+                        selectedSection = i;
+                        sectionChangeTime =
+                            System.currentTimeMillis();
+                    }
+
                     return true;
                 }
             }
 
-            int contentX = x + 145;
+            int contentX = x + 132;
 
-            // Выбор цвета
-            if (selectedSection == 0) {
+            // Выбор цвета в Themes
+            if (selectedSection == 5) {
                 for (int i = 0; i < COLORS.length; i++) {
-                    int colorX = contentX + 12 + (i % 4) * 48;
-                    int colorY = y + 140 + (i / 4) * 43;
+                    int colorX = contentX + 12 + (i % 4) * 43;
+                    int colorY = y + 125 + (i / 4) * 35;
 
                     if (mouseX >= colorX - 3
-                        && mouseX <= colorX + 27
+                        && mouseX <= colorX + 25
                         && mouseY >= colorY - 3
-                        && mouseY <= colorY + 27) {
+                        && mouseY <= colorY + 25) {
+
                         selectedColor = i;
                         return true;
                     }
                 }
             } else {
-                // Включение и выключение модулей
+                // Переключение функций
                 String[] modules = MODULES[selectedSection];
 
                 for (int i = 0; i < modules.length; i++) {
-                    int rowY = y + 76 + i * 35;
+                    int rowY = y + 69 + i * 31;
 
                     if (mouseX >= contentX - 5
-                        && mouseX <= contentX + 260
+                        && mouseX <= contentX + 237
                         && mouseY >= rowY
-                        && mouseY <= rowY + 29) {
+                        && mouseY <= rowY + 26) {
+
                         enabled[selectedSection][i] =
                             !enabled[selectedSection][i];
+
                         return true;
                     }
                 }
@@ -315,4 +447,4 @@ public class ClickGuiScreen extends Screen {
     public boolean shouldPause() {
         return false;
     }
-}
+            }
