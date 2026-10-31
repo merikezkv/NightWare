@@ -118,7 +118,7 @@ public class ArmorHudRenderer {
                         .getOrThrow(RegistryKeys.ENCHANTMENT);
 
         RegistryEntry<Enchantment> mending =
-                registry.getEntry(Enchantments.MENDING).orElse(null);
+        registry.getEntry(Enchantments.MENDING.getValue()).orElse(null);
 
         return mending != null
                 && EnchantmentHelper.getLevel(mending, stack) > 0;
