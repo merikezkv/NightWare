@@ -4,6 +4,7 @@ package ru.nightware.client.hud;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
@@ -16,6 +17,7 @@ import org.lwjgl.system.MemoryStack;
 import ru.nightware.client.gui.ClickGuiScreen;
 
 import java.nio.DoubleBuffer;
+import java.util.Locale;
 
 public class ArmorHudRenderer {
 
@@ -62,7 +64,8 @@ public class ArmorHudRenderer {
     }
 
     private static void updateDragging(MinecraftClient client) {
-        if (client.currentScreen != null) {
+        // Перемещение разрешено только в открытом чате
+        if (!(client.currentScreen instanceof ChatScreen)) {
             dragging = false;
             mouseWasDown = false;
             return;
@@ -96,17 +99,20 @@ public class ArmorHudRenderer {
             );
         }
 
+        // Начало перетаскивания
         if (mouseDown && !mouseWasDown) {
-            if (inside(mouseX, mouseY,
+            if (inside(
+                    mouseX, mouseY,
                     armorX, armorY,
-                    ARMOR_WIDTH, ARMOR_HEIGHT)) {
-
+                    ARMOR_WIDTH, ARMOR_HEIGHT
+            )) {
                 dragging = true;
                 dragOffsetX = mouseX - armorX;
                 dragOffsetY = mouseY - armorY;
             }
         }
 
+        // Перемещение панели
         if (mouseDown && dragging) {
             armorX = Math.max(0, Math.min(
                     mouseX - dragOffsetX,
@@ -210,23 +216,42 @@ public class ArmorHudRenderer {
             DrawContext context,
             MinecraftClient client
     ) {
+        String nickname = client.player.getName().getString();
+        int fps = client.getCurrentFps();
+
+        double bps = client.player.getVelocity().horizontalLength() * 20.0;
+
+        String info = String.format(
+                Locale.ROOT,
+                "NightWare | %s | %d FPS | %.1f BPS",
+                nickname,
+                fps,
+                bps
+        );
+
+        int textWidth = client.textRenderer.getWidth(info);
+        int width = textWidth + 12;
+        int height = 15;
+
         int x = WATERMARK_X;
         int y = WATERMARK_Y;
 
         context.fill(
-                x, y, x + 75, y + 13,
+                x, y,
+                x + width, y + height,
                 0xCC151020
         );
 
         context.fill(
-                x, y, x + 2, y + 13,
+                x, y,
+                x + 2, y + height,
                 PURPLE
         );
 
         context.drawText(
                 client.textRenderer,
-                "NightWare",
-                x + 5, y + 3,
+                info,
+                x + 6, y + 4,
                 PURPLE,
                 false
         );
@@ -262,4 +287,4 @@ public class ArmorHudRenderer {
         return mending != null
                 && EnchantmentHelper.getLevel(mending, stack) > 0;
     }
-            }
+}
