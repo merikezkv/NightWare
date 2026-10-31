@@ -11,6 +11,10 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.DoubleBuffer;
 
 public class ArmorHudRenderer {
 
@@ -18,6 +22,28 @@ public class ArmorHudRenderer {
     private static final int GREEN = 0xFF35E879;
     private static final int RED = 0xFFFF4545;
     private static final int WHITE = 0xFFFFFFFF;
+
+    // Armor HUD position
+    private static int armorX = 12;
+    private static int armorY = 35;
+
+    // Watermark position (fixed)
+    private static final int WATERMARK_X = 5;
+    private static final int WATERMARK_Y = 5;
+
+    // HUD sizes
+    private static final int ARMOR_WIDTH = 112;
+    private static final int ARMOR_HEIGHT = 34;
+
+    private static final int WATERMARK_WIDTH = 75;
+    private static final int WATERMARK_HEIGHT = 13;
+
+    // Dragging
+    private static boolean mouseWasDown = false;
+    private static boolean dragging = false;
+
+    private static int dragOffsetX;
+    private static int dragOffsetY;
 
     public static void register() {
         HudRenderCallback.EVENT.register((context, tickCounter) -> {
@@ -27,25 +53,127 @@ public class ArmorHudRenderer {
                 return;
             }
 
-            render(context, client);
+            updateDragging(client);
+
+            renderArmor(context, client);
+            renderWatermark(context, client);
         });
     }
 
-    private static void render(DrawContext context, MinecraftClient client) {
+    private static void updateDragging(MinecraftClient client) {
+        if (client.currentScreen != null) {
+            dragging = false;
+            mouseWasDown = false;
+            return;
+        }
+
+        var window = client.getWindow();
+        long handle = window.getHandle();
+
+        boolean mouseDown =
+                GLFW.glfwGetMouseButton(
+                        handle,
+                        GLFW.GLFW_MOUSE_BUTTON_1
+                ) == GLFW.GLFW_PRESS;
+
+        int mouseX;
+        int mouseY;
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            DoubleBuffer px = stack.mallocDouble(1);
+            DoubleBuffer py = stack.mallocDouble(1);
+
+            GLFW.glfwGetCursorPos(handle, px, py);
+
+            mouseX = (int) (
+                    px.get(0) * window.getScaledWidth()
+                            / window.getWidth()
+            );
+
+            mouseY = (int) (
+                    py.get(0) * window.getScaledHeight()
+                            / window.getHeight()
+            );
+        }
+
+        if (mouseDown && !mouseWasDown) {
+            if (inside(
+                    mouseX, mouseY,
+                    armorX, armorY,
+                    ARMOR_WIDTH, ARMOR_HEIGHT
+            )) {
+                dragging = true;
+
+                dragOffsetX = mouseX - armorX;
+                dragOffsetY = mouseY - armorY;
+            }
+        }
+
+        if (mouseDown && dragging) {
+            armorX = mouseX - dragOffsetX;
+            armorY = mouseY - dragOffsetY;
+
+            armorX = Math.max(
+                    0,
+                    Math.min(
+                            armorX,
+                            window.getScaledWidth() - ARMOR_WIDTH
+                    )
+            );
+
+            armorY = Math.max(
+                    0,
+                    Math.min(
+                            armorY,
+                            window.getScaledHeight() - ARMOR_HEIGHT
+                    )
+            );
+        }
+
+        if (!mouseDown) {
+            dragging = false;
+        }
+
+        mouseWasDown = mouseDown;
+    }
+
+    private static boolean inside(
+            int mx, int my,
+            int x, int y,
+            int width, int height
+    ) {
+        return mx >= x && mx <= x + width
+                && my >= y && my <= y + height;
+    }
+
+    private static void renderArmor(
+            DrawContext context,
+            MinecraftClient client
+    ) {
         var armor = client.player.getInventory().armor;
 
-        int x = 12;
-        int y = 12;
-        int width = 150;
-        int height = 38;
+        int x = armorX;
+        int y = armorY;
 
-        context.fill(x, y, x + width, y + height, 0xCC151020);
-        context.fill(x, y, x + width, y + 2, PURPLE);
+        context.fill(
+                x, y,
+                x + ARMOR_WIDTH,
+                y + ARMOR_HEIGHT,
+                0xCC151020
+        );
+
+        context.fill(
+                x, y,
+                x + ARMOR_WIDTH,
+                y + 2,
+                PURPLE
+        );
 
         context.drawText(
                 client.textRenderer,
-                "NIGHTWARE ARMOR",
-                x + 7, y + 5,
+                "ARMOR",
+                x + 4,
+                y + 4,
                 PURPLE,
                 false
         );
@@ -55,8 +183,8 @@ public class ArmorHudRenderer {
         for (int i = 0; i < slots.length; i++) {
             ItemStack stack = armor.get(slots[i]);
 
-            int itemX = x + 7 + i * 35;
-            int itemY = y + 17;
+            int itemX = x + 3 + i * 27;
+            int itemY = y + 15;
 
             if (stack.isEmpty()) {
                 context.fill(
@@ -72,8 +200,8 @@ public class ArmorHudRenderer {
 
             if (mending) {
                 context.fill(
-                        itemX - 2, itemY - 2,
-                        itemX + 18, itemY + 18,
+                        itemX - 1, itemY - 1,
+                        itemX + 17, itemY + 17,
                         0x6635E879
                 );
             }
@@ -86,13 +214,44 @@ public class ArmorHudRenderer {
 
             context.drawText(
                     client.textRenderer,
-                    durability + "%",
+                    String.valueOf(durability),
                     itemX - 1,
-                    itemY + 18,
+                    itemY + 16,
                     color,
                     false
             );
         }
+    }
+
+    private static void renderWatermark(
+            DrawContext context,
+            MinecraftClient client
+    ) {
+        int x = WATERMARK_X;
+        int y = WATERMARK_Y;
+
+        context.fill(
+                x, y,
+                x + WATERMARK_WIDTH,
+                y + WATERMARK_HEIGHT,
+                0xCC151020
+        );
+
+        context.fill(
+                x, y,
+                x + 2,
+                y + WATERMARK_HEIGHT,
+                PURPLE
+        );
+
+        context.drawText(
+                client.textRenderer,
+                "NightWare",
+                x + 5,
+                y + 3,
+                PURPLE,
+                false
+        );
     }
 
     private static int getDurability(ItemStack stack) {
@@ -118,9 +277,12 @@ public class ArmorHudRenderer {
                         .getOrThrow(RegistryKeys.ENCHANTMENT);
 
         RegistryEntry<Enchantment> mending =
-        registry.getEntry(Enchantments.MENDING.getValue()).orElse(null);
+                registry.getEntry(
+                        Enchantments.MENDING.getValue()
+                ).orElse(null);
 
         return mending != null
                 && EnchantmentHelper.getLevel(mending, stack) > 0;
     }
-}
+    }
+            
