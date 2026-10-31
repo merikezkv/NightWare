@@ -37,14 +37,11 @@ public class ClickGuiScreen extends Screen {
         {"Movement Visual"},
         {"Armor Highlight", "Coordinates", "FPS Counter"},
         {"Player Visual"},
-        {"HUD"},
+        {"Armor HUD", "Watermark"},
         {}
     };
 
-    // Сохраняются при закрытии ClickGUI
     private static final boolean[][] enabled = new boolean[6][3];
-
-    // Анимация переключателей
     private static final float[][] toggleAnimation = new float[6][3];
 
     private int selectedColor = 0;
@@ -53,8 +50,6 @@ public class ClickGuiScreen extends Screen {
     private long openTime;
     private long sectionChangeTime;
 
-    private int previousSection = 0;
-
     private static final long OPEN_DURATION = 350;
     private static final long SECTION_DURATION = 220;
 
@@ -62,6 +57,18 @@ public class ClickGuiScreen extends Screen {
         super(Text.literal("NightWare"));
         openTime = System.currentTimeMillis();
         sectionChangeTime = openTime;
+    }
+
+    public static boolean isModuleEnabled(int section, int module) {
+        if (section < 0 || section >= enabled.length) {
+            return false;
+        }
+
+        if (module < 0 || module >= enabled[section].length) {
+            return false;
+        }
+
+        return enabled[section][module];
     }
 
     private float clamp(float value) {
@@ -109,7 +116,6 @@ public class ClickGuiScreen extends Screen {
                 % COLORS.length);
 
         int next = (index + 1) % COLORS.length;
-
         float progress = (time % 45) / 45.0f;
 
         return blend(COLORS[index], COLORS[next], progress);
@@ -122,7 +128,7 @@ public class ClickGuiScreen extends Screen {
         int mouseY,
         float delta
     ) {
-        // Размытие полностью отключено
+        // Blur disabled
     }
 
     @Override
@@ -134,22 +140,16 @@ public class ClickGuiScreen extends Screen {
     ) {
         float opening = openProgress();
 
-        // Непрозрачный фон
         context.fill(0, 0, width, height, BG);
 
         int baseX = width / 2 - 190;
         int baseY = height / 2 - 112;
 
-        // Анимация появления: плавное смещение
         int x = baseX;
         int y = baseY + (int) ((1.0f - opening) * 18);
 
-        int accent = COLORS[selectedColor];
-
-        // Основное окно
         context.fill(x, y, x + 380, y + 225, PANEL);
 
-        // Заголовок
         context.fill(x, y, x + 380, y + 36, 0xFF20202A);
         context.fill(
             x, y + 35, x + 380, y + 37,
@@ -170,7 +170,6 @@ public class ClickGuiScreen extends Screen {
             0xFFFFFFFF
         );
 
-        // Боковая панель
         context.fill(
             x, y + 37,
             x + 115, y + 225,
@@ -184,7 +183,6 @@ public class ClickGuiScreen extends Screen {
             0xFF888888
         );
 
-        // Разделы
         for (int i = 0; i < SECTIONS.length; i++) {
             int rowY = y + 65 + i * 25;
 
@@ -214,7 +212,6 @@ public class ClickGuiScreen extends Screen {
 
         int contentX = x + 132;
 
-        // Заголовок выбранной секции
         context.drawTextWithShadow(
             textRenderer,
             Text.literal(SECTIONS[selectedSection].toUpperCase()),
@@ -223,8 +220,6 @@ public class ClickGuiScreen extends Screen {
         );
 
         float transition = sectionProgress();
-
-        // Плавный переход содержимого
         int slide = (int) ((1.0f - transition) * 18);
 
         if (selectedSection == 5) {
@@ -324,7 +319,6 @@ public class ClickGuiScreen extends Screen {
 
             boolean active = enabled[selectedSection][i];
 
-            // Плавная анимация ON/OFF
             float target = active ? 1.0f : 0.0f;
 
             toggleAnimation[selectedSection][i] +=
@@ -366,8 +360,11 @@ public class ClickGuiScreen extends Screen {
                 Text.literal(active ? "ON" : "OFF"),
                 contentX + 204 + slide,
                 rowY + 9,
-                blend(0xFF888888, animatedColor(i * 400L),
-                    animation)
+                blend(
+                    0xFF888888,
+                    animatedColor(i * 400L),
+                    animation
+                )
             );
         }
     }
@@ -382,7 +379,6 @@ public class ClickGuiScreen extends Screen {
             int x = width / 2 - 190;
             int y = height / 2 - 112;
 
-            // Выбор секции
             for (int i = 0; i < SECTIONS.length; i++) {
                 int rowY = y + 65 + i * 25;
 
@@ -392,7 +388,6 @@ public class ClickGuiScreen extends Screen {
                     && mouseY <= rowY + 18) {
 
                     if (selectedSection != i) {
-                        previousSection = selectedSection;
                         selectedSection = i;
                         sectionChangeTime =
                             System.currentTimeMillis();
@@ -404,7 +399,6 @@ public class ClickGuiScreen extends Screen {
 
             int contentX = x + 132;
 
-            // Выбор цвета в Themes
             if (selectedSection == 5) {
                 for (int i = 0; i < COLORS.length; i++) {
                     int colorX = contentX + 12 + (i % 4) * 43;
@@ -420,7 +414,6 @@ public class ClickGuiScreen extends Screen {
                     }
                 }
             } else {
-                // Переключение функций
                 String[] modules = MODULES[selectedSection];
 
                 for (int i = 0; i < modules.length; i++) {
@@ -447,4 +440,4 @@ public class ClickGuiScreen extends Screen {
     public boolean shouldPause() {
         return false;
     }
-            }
+                                  }
