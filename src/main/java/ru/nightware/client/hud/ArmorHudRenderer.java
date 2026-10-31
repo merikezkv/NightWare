@@ -69,8 +69,23 @@ public class ArmorHudRenderer {
                 continue;
             }
 
-            boolean mending = hasMending(stack);
-            int durability = getDurability(stack);
+            private static boolean hasMending(ItemStack stack) {
+    MinecraftClient client = MinecraftClient.getInstance();
+
+    if (client.world == null) {
+        return false;
+    }
+
+    Registry<Enchantment> registry =
+            client.world.getRegistryManager()
+                    .getOrThrow(RegistryKeys.ENCHANTMENT);
+
+    RegistryEntry<Enchantment> mending =
+            registry.getEntry(Enchantments.MENDING).orElse(null);
+
+    return mending != null
+            && EnchantmentHelper.getLevel(mending, stack) > 0;
+        }
 
             // Подсветка предмета с Починкой
             if (mending) {
