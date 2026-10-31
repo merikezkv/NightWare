@@ -28,8 +28,8 @@ public class ClickGuiScreen extends Screen {
     };
 
     private static final String[] SECTIONS = {
-        "Theme", "Combat", "Movement",
-        "Render", "Player", "Util"
+        "Combat", "Movement",
+        "Render", "Player", "Util", "Themes"
     };
 
     private static final String[][] MODULES = {
@@ -41,7 +41,7 @@ public class ClickGuiScreen extends Screen {
         {"HUD"}
     };
 
-    private final boolean[][] enabled = new boolean[6][3];
+    private static final boolean[][] enabled = new boolean[6][3];
 
     private int selectedColor = 0;
     private int selectedSection = 0;
