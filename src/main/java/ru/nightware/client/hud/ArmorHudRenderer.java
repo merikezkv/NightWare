@@ -13,6 +13,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.system.MemoryStack;
+import ru.nightware.client.gui.ClickGuiScreen;
 
 import java.nio.DoubleBuffer;
 
@@ -23,24 +24,17 @@ public class ArmorHudRenderer {
     private static final int RED = 0xFFFF4545;
     private static final int WHITE = 0xFFFFFFFF;
 
-    // Armor HUD position
     private static int armorX = 12;
     private static int armorY = 35;
 
-    // Watermark position (fixed)
     private static final int WATERMARK_X = 5;
     private static final int WATERMARK_Y = 5;
 
-    // HUD sizes
     private static final int ARMOR_WIDTH = 112;
     private static final int ARMOR_HEIGHT = 34;
 
-    private static final int WATERMARK_WIDTH = 75;
-    private static final int WATERMARK_HEIGHT = 13;
-
-    // Dragging
-    private static boolean mouseWasDown = false;
-    private static boolean dragging = false;
+    private static boolean mouseWasDown;
+    private static boolean dragging;
 
     private static int dragOffsetX;
     private static int dragOffsetY;
@@ -53,10 +47,17 @@ public class ArmorHudRenderer {
                 return;
             }
 
-            updateDragging(client);
+            if (ClickGuiScreen.isModuleEnabled(4, 0)) {
+                updateDragging(client);
+                renderArmor(context, client);
+            } else {
+                dragging = false;
+                mouseWasDown = false;
+            }
 
-            renderArmor(context, client);
-            renderWatermark(context, client);
+            if (ClickGuiScreen.isModuleEnabled(4, 1)) {
+                renderWatermark(context, client);
+            }
         });
     }
 
@@ -70,11 +71,10 @@ public class ArmorHudRenderer {
         var window = client.getWindow();
         long handle = window.getHandle();
 
-        boolean mouseDown =
-                GLFW.glfwGetMouseButton(
-                        handle,
-                        GLFW.GLFW_MOUSE_BUTTON_1
-                ) == GLFW.GLFW_PRESS;
+        boolean mouseDown = GLFW.glfwGetMouseButton(
+                handle,
+                GLFW.GLFW_MOUSE_BUTTON_1
+        ) == GLFW.GLFW_PRESS;
 
         int mouseX;
         int mouseY;
@@ -97,37 +97,26 @@ public class ArmorHudRenderer {
         }
 
         if (mouseDown && !mouseWasDown) {
-            if (inside(
-                    mouseX, mouseY,
+            if (inside(mouseX, mouseY,
                     armorX, armorY,
-                    ARMOR_WIDTH, ARMOR_HEIGHT
-            )) {
-                dragging = true;
+                    ARMOR_WIDTH, ARMOR_HEIGHT)) {
 
+                dragging = true;
                 dragOffsetX = mouseX - armorX;
                 dragOffsetY = mouseY - armorY;
             }
         }
 
         if (mouseDown && dragging) {
-            armorX = mouseX - dragOffsetX;
-            armorY = mouseY - dragOffsetY;
+            armorX = Math.max(0, Math.min(
+                    mouseX - dragOffsetX,
+                    window.getScaledWidth() - ARMOR_WIDTH
+            ));
 
-            armorX = Math.max(
-                    0,
-                    Math.min(
-                            armorX,
-                            window.getScaledWidth() - ARMOR_WIDTH
-                    )
-            );
-
-            armorY = Math.max(
-                    0,
-                    Math.min(
-                            armorY,
-                            window.getScaledHeight() - ARMOR_HEIGHT
-                    )
-            );
+            armorY = Math.max(0, Math.min(
+                    mouseY - dragOffsetY,
+                    window.getScaledHeight() - ARMOR_HEIGHT
+            ));
         }
 
         if (!mouseDown) {
@@ -140,10 +129,10 @@ public class ArmorHudRenderer {
     private static boolean inside(
             int mx, int my,
             int x, int y,
-            int width, int height
+            int w, int h
     ) {
-        return mx >= x && mx <= x + width
-                && my >= y && my <= y + height;
+        return mx >= x && mx <= x + w
+                && my >= y && my <= y + h;
     }
 
     private static void renderArmor(
@@ -162,18 +151,12 @@ public class ArmorHudRenderer {
                 0xCC151020
         );
 
-        context.fill(
-                x, y,
-                x + ARMOR_WIDTH,
-                y + 2,
-                PURPLE
-        );
+        context.fill(x, y, x + ARMOR_WIDTH, y + 2, PURPLE);
 
         context.drawText(
                 client.textRenderer,
                 "ARMOR",
-                x + 4,
-                y + 4,
+                x + 4, y + 4,
                 PURPLE,
                 false
         );
@@ -231,24 +214,19 @@ public class ArmorHudRenderer {
         int y = WATERMARK_Y;
 
         context.fill(
-                x, y,
-                x + WATERMARK_WIDTH,
-                y + WATERMARK_HEIGHT,
+                x, y, x + 75, y + 13,
                 0xCC151020
         );
 
         context.fill(
-                x, y,
-                x + 2,
-                y + WATERMARK_HEIGHT,
+                x, y, x + 2, y + 13,
                 PURPLE
         );
 
         context.drawText(
                 client.textRenderer,
                 "NightWare",
-                x + 5,
-                y + 3,
+                x + 5, y + 3,
                 PURPLE,
                 false
         );
@@ -284,5 +262,4 @@ public class ArmorHudRenderer {
         return mending != null
                 && EnchantmentHelper.getLevel(mending, stack) > 0;
     }
-    }
-            
+            }
